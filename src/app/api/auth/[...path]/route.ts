@@ -1,58 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const USER_SERVICE =
-  process.env.NEXT_PUBLIC_USER_SERVICE || "http://13.49.49.26:5000";
+const USER_SERVICE_URL = process.env.NEXT_PUBLIC_USER_SERVICE;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  const path = params.path.join("/");
-  const url = `${USER_SERVICE}/api/v1/${path}${request.nextUrl.search}`;
+  const { path } = await params;
+  const url = `${USER_SERVICE_URL}/api/v1/${path.join("/")}`;
 
   try {
-    const authHeader = request.headers.get("authorization");
-
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        ...(authHeader && { Authorization: authHeader }),
-        Cookie: request.headers.get("cookie") || "",
-        "Content-Type": "application/json",
+        Authorization: request.headers.get("Authorization") || "",
       },
     });
 
     const data = await response.json();
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    return NextResponse.json({ error: "Proxy error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Failed to fetch from user service" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  const path = params.path.join("/");
-  const body = await request.json();
-  const url = `${USER_SERVICE}/api/v1/${path}`;
+  const { path } = await params;
+  const url = `${USER_SERVICE_URL}/api/v1/${path.join("/")}`;
 
   try {
-    const authHeader = request.headers.get("authorization");
+    const body = await request.json();
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        ...(authHeader && { Authorization: authHeader }),
-        Cookie: request.headers.get("cookie") || "",
         "Content-Type": "application/json",
+        Authorization: request.headers.get("Authorization") || "",
       },
       body: JSON.stringify(body),
     });
 
     const data = await response.json();
+
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    return NextResponse.json({ error: "Proxy error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Failed to post to user service" },
+      { status: 500 }
+    );
   }
 }
