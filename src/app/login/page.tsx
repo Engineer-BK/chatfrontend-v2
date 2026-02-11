@@ -21,12 +21,9 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_USER_SERVICE}/api/v1/login`,
-        {
-          email,
-        }
-      );
+      const { data } = await axios.post("/api/auth/login", {
+        email,
+      });
 
       toast.success(data.message);
       router.push(`/verify?email=${email}`);

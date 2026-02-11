@@ -26,7 +26,7 @@ const ProfilePage = () => {
     const token = Cookies.get("token");
     try {
       const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_USER_SERVICE}/api/v1/update/user`,
+        "/api/auth/update/user",
         { name },
         {
           headers: {

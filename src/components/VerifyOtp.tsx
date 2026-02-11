@@ -81,13 +81,10 @@ const VerifyOtp = () => {
     setLoading(true);
 
     try {
-      const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_USER_SERVICE}/api/v1/verify`,
-        {
-          email,
-          otp: otpString,
-        }
-      );
+      const { data } = await axios.post("/api/auth/verify", {
+        email,
+        otp: otpString,
+      });
       toast.success(data.message);
       Cookies.set("token", data.token, {
         expires: 15,
@@ -111,12 +108,9 @@ const VerifyOtp = () => {
     setResendLoading(true);
     setError("");
     try {
-      const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_USER_SERVICE}/api/v1/login`,
-        {
-          email,
-        }
-      );
+      const { data } = await axios.post("/api/auth/login", {
+        email,
+      });
       toast.success(data.message);
       setTimer(60);
     } catch (error: any) {

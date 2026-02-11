@@ -65,14 +65,11 @@ const ChatApp = () => {
   async function fetchChat() {
     const token = Cookies.get("token");
     try {
-      const { data } = await axios.get(
-        `${process.env.NEXT_PUBLIC_CHAT_SERVICE}/api/v1/message/${selectedUser}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const { data } = await axios.get(`/api/chat/message/${selectedUser}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       setMessages(data.messages);
       setUser(data.user);
@@ -146,7 +143,7 @@ const ChatApp = () => {
     try {
       const token = Cookies.get("token");
       const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_CHAT_SERVICE}/api/v1/chat/new`,
+        "/api/chat/chat/new",
         {
           userId: loggedInUser?._id,
           otherUserId: u._id,
@@ -199,16 +196,12 @@ const ChatApp = () => {
         formData.append("image", imageFile);
       }
 
-      const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_CHAT_SERVICE}/api/v1/message`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const { data } = await axios.post("/api/chat/message", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       setMessages((prev) => {
         const currentMessages = prev || [];

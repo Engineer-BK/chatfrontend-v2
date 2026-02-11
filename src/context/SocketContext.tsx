@@ -32,10 +32,12 @@ export const SocketProvider = ({ children }: ProviderProps) => {
   useEffect(() => {
     if (!user?._id) return;
 
-    const newSocket = io(process.env.NEXT_PUBLIC_CHAT_SERVICE, {
+    // Keep direct connection for Socket.IO (WebSocket can bypass mixed content in some cases)
+    const newSocket = io(process.env.NEXT_PUBLIC_CHAT_SERVICE || 'http://13.49.49.26:5002', {
       query: {
         userId: user._id,
       },
+      transports: ['websocket', 'polling'], // Try websocket first
     });
 
     setSocket(newSocket);
