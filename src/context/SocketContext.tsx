@@ -1,5 +1,4 @@
 "use client";
-
 import {
   createContext,
   ReactNode,
@@ -8,48 +7,53 @@ import {
   useState,
 } from "react";
 import { io, Socket } from "socket.io-client";
-import { useAppData } from "./AppContext";
+import Cookies from "js-cookie";
 
 interface SocketContextType {
   socket: Socket | null;
   onlineUsers: string[];
 }
 
-const SocketContext = createContext<SocketContextType>({
-  socket: null,
-  onlineUsers: [],
-});
+const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
-interface ProviderProps {
+interface SocketProviderProps {
   children: ReactNode;
 }
 
-export const SocketProvider = ({ children }: ProviderProps) => {
+export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const { user } = useAppData();
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!user?._id) return;
+    const token = Cookies.get("token");
 
-    // Keep direct connection for Socket.IO (WebSocket can bypass mixed content in some cases)
-    const newSocket = io(process.env.NEXT_PUBLIC_CHAT_SERVICE || 'http://13.49.49.26:5002', {
-      query: {
-        userId: user._id,
-      },
-      transports: ['websocket', 'polling'], // Try websocket first
-    });
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const userId = payload._id;
 
-    setSocket(newSocket);
+        // Create socket connection with HTTP long-polling only (no WebSocket)
+        const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
+          query: { userId },
+          transports: ["polling"], // Force HTTP long-polling instead of WebSocket
+          secure: false, // Allow HTTP connection
+          rejectUnauthorized: false,
+        });
 
-    newSocket.on("getOnlineUser", (users: string[]) => {
-      setOnlineUsers(users);
-    });
+        newSocket.on("getOnlineUsers", (users: string[]) => {
+          setOnlineUsers(users);
+        });
 
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [user?._id]);
+        setSocket(newSocket);
+
+        return () => {
+          newSocket.close();
+        };
+      } catch (error) {
+        console.error("Failed to initialize socket:", error);
+      }
+    }
+  }, []);
 
   return (
     <SocketContext.Provider value={{ socket, onlineUsers }}>
@@ -58,4 +62,10 @@ export const SocketProvider = ({ children }: ProviderProps) => {
   );
 };
 
-export const SocketData = () => useContext(SocketContext);
+export const SocketData = (): SocketContextType => {
+  const context = useContext(SocketContext);
+  if (!context) {
+    throw new Error("SocketData must be used within SocketProvider");
+  }
+  return context;
+};
