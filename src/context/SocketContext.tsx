@@ -27,38 +27,137 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   useEffect(() => {
     const token = Cookies.get("token");
 
+    console.log("🔍 [Socket Debug] Initializing socket connection...");
+    console.log("🔍 [Socket Debug] Token exists:", !!token);
+
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         const userId = payload._id;
 
-        // Create socket connection - let Socket.IO auto-detect best transport
+        console.log("🔍 [Socket Debug] User ID:", userId);
+        console.log(
+          "🔍 [Socket Debug] Socket URL:",
+          process.env.NEXT_PUBLIC_SOCKET_URL
+        );
+
+        // Create socket connection
         const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
           query: { userId },
-          transports: ["websocket", "polling"], // Try WebSocket first, fallback to polling
-          // Remove secure and rejectUnauthorized - let Socket.IO handle it automatically
+          transports: ["websocket", "polling"],
         });
 
-        newSocket.on("getOnlineUsers", (users: string[]) => {
+        console.log("🔍 [Socket Debug] Socket instance created");
+
+        // Connection successful
+        newSocket.on("connect", () => {
+          console.log("✅ [Socket] Connected successfully!");
+          console.log("✅ [Socket] Socket ID:", newSocket.id);
+          console.log(
+            "✅ [Socket] Transport:",
+            newSocket.io.engine.transport.name
+          );
+        });
+
+        // Connection error
+        newSocket.on("connect_error", (error) => {
+          console.error("❌ [Socket] Connection error:", error);
+          console.error("❌ [Socket] Error message:", error.message);
+          console.error("❌ [Socket] Error type:", error.name);
+          console.error("❌ [Socket] Error description:", error.cause);
+        });
+
+        // Connection timeout
+        newSocket.on("connect_timeout", () => {
+          console.error("⏰ [Socket] Connection timeout");
+        });
+
+        // Reconnection attempt
+        newSocket.on("reconnect_attempt", (attemptNumber) => {
+          console.log(`🔄 [Socket] Reconnection attempt #${attemptNumber}`);
+        });
+
+        // Reconnection error
+        newSocket.on("reconnect_error", (error) => {
+          console.error("❌ [Socket] Reconnection error:", error);
+        });
+
+        // Reconnection failed
+        newSocket.on("reconnect_failed", () => {
+          console.error(
+            "❌ [Socket] Reconnection failed - all attempts exhausted"
+          );
+        });
+
+        // Reconnected successfully
+        newSocket.on("reconnect", (attemptNumber) => {
+          console.log(
+            `✅ [Socket] Reconnected successfully after ${attemptNumber} attempts`
+          );
+        });
+
+        // Disconnected
+        newSocket.on("disconnect", (reason) => {
+          console.warn("⚠️ [Socket] Disconnected. Reason:", reason);
+          if (reason === "io server disconnect") {
+            console.log(
+              "🔄 [Socket] Server disconnected the socket. Reconnecting..."
+            );
+            newSocket.connect();
+          }
+        });
+
+        // Online users event
+        newSocket.on("getOnlineUser", (users: string[]) => {
+          console.log("👥 [Socket] Online users received:", users);
+          console.log("👥 [Socket] Number of online users:", users.length);
           setOnlineUsers(users);
         });
 
-        newSocket.on("connect", () => {
-          console.log("Socket connected successfully");
+        // Typing event
+        newSocket.on("userTyping", (data) => {
+          console.log("⌨️ [Socket] User typing:", data);
         });
 
-        newSocket.on("connect_error", (error) => {
-          console.error("Socket connection error:", error);
+        // Stopped typing event
+        newSocket.on("userStoppedTyping", (data) => {
+          console.log("⌨️ [Socket] User stopped typing:", data);
+        });
+
+        // New message event
+        newSocket.on("newMessage", (message) => {
+          console.log("💬 [Socket] New message received:", message);
+        });
+
+        // Messages seen event
+        newSocket.on("messagesSeen", (data) => {
+          console.log("✓✓ [Socket] Messages seen:", data);
+        });
+
+        // Catch-all for any events
+        newSocket.onAny((eventName, ...args) => {
+          console.log(`📡 [Socket] Event received: ${eventName}`, args);
         });
 
         setSocket(newSocket);
+        console.log("🔍 [Socket Debug] Socket set in state");
 
         return () => {
+          console.log("🔌 [Socket] Cleaning up socket connection");
           newSocket.close();
         };
       } catch (error) {
-        console.error("Failed to initialize socket:", error);
+        console.error("❌ [Socket] Failed to initialize socket:", error);
+        if (error instanceof Error) {
+          console.error("❌ [Socket] Error name:", error.name);
+          console.error("❌ [Socket] Error message:", error.message);
+          console.error("❌ [Socket] Error stack:", error.stack);
+        }
       }
+    } else {
+      console.warn(
+        "⚠️ [Socket] No token found - skipping socket initialization"
+      );
     }
   }, []);
 
