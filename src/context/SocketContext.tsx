@@ -32,16 +32,23 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         const payload = JSON.parse(atob(token.split(".")[1]));
         const userId = payload._id;
 
-        // Create socket connection with HTTP long-polling only (no WebSocket)
+        // Create socket connection - let Socket.IO auto-detect best transport
         const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
           query: { userId },
-          transports: ["polling"], // Force HTTP long-polling instead of WebSocket
-          secure: false, // Allow HTTP connection
-          rejectUnauthorized: false,
+          transports: ["websocket", "polling"], // Try WebSocket first, fallback to polling
+          // Remove secure and rejectUnauthorized - let Socket.IO handle it automatically
         });
 
         newSocket.on("getOnlineUsers", (users: string[]) => {
           setOnlineUsers(users);
+        });
+
+        newSocket.on("connect", () => {
+          console.log("Socket connected successfully");
+        });
+
+        newSocket.on("connect_error", (error) => {
+          console.error("Socket connection error:", error);
         });
 
         setSocket(newSocket);
