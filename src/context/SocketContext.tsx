@@ -37,9 +37,14 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
         console.log("🔍 [Socket Debug] Full JWT payload:", payload);
 
-        // Try different possible user ID fields
+        // FIXED: User ID is nested inside payload.user._id
         const userId =
-          payload._id || payload.id || payload.userId || payload.sub;
+          payload.user?._id ||
+          payload.user?.id ||
+          payload._id ||
+          payload.id ||
+          payload.userId ||
+          payload.sub;
 
         console.log("🔍 [Socket Debug] User ID extracted:", userId);
         console.log(
@@ -49,10 +54,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
         if (!userId) {
           console.error("❌ [Socket] No user ID found in token payload!");
-          console.error(
-            "❌ [Socket] Available payload keys:",
-            Object.keys(payload)
-          );
+          console.error("❌ [Socket] Payload structure:", payload);
           return;
         }
 
