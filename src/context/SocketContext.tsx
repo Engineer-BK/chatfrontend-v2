@@ -32,14 +32,29 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
     if (token) {
       try {
+        // Decode the JWT token
         const payload = JSON.parse(atob(token.split(".")[1]));
-        const userId = payload._id;
 
-        console.log("🔍 [Socket Debug] User ID:", userId);
+        console.log("🔍 [Socket Debug] Full JWT payload:", payload);
+
+        // Try different possible user ID fields
+        const userId =
+          payload._id || payload.id || payload.userId || payload.sub;
+
+        console.log("🔍 [Socket Debug] User ID extracted:", userId);
         console.log(
           "🔍 [Socket Debug] Socket URL:",
           process.env.NEXT_PUBLIC_SOCKET_URL
         );
+
+        if (!userId) {
+          console.error("❌ [Socket] No user ID found in token payload!");
+          console.error(
+            "❌ [Socket] Available payload keys:",
+            Object.keys(payload)
+          );
+          return;
+        }
 
         // Create socket connection
         const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
@@ -47,12 +62,16 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
           transports: ["websocket", "polling"],
         });
 
-        console.log("🔍 [Socket Debug] Socket instance created");
+        console.log(
+          "🔍 [Socket Debug] Socket instance created with userId:",
+          userId
+        );
 
         // Connection successful
         newSocket.on("connect", () => {
           console.log("✅ [Socket] Connected successfully!");
           console.log("✅ [Socket] Socket ID:", newSocket.id);
+          console.log("✅ [Socket] User ID sent:", userId);
           console.log(
             "✅ [Socket] Transport:",
             newSocket.io.engine.transport.name
@@ -63,54 +82,21 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         newSocket.on("connect_error", (error) => {
           console.error("❌ [Socket] Connection error:", error);
           console.error("❌ [Socket] Error message:", error.message);
-          console.error("❌ [Socket] Error type:", error.name);
-          console.error("❌ [Socket] Error description:", error.cause);
-        });
-
-        // Connection timeout
-        newSocket.on("connect_timeout", () => {
-          console.error("⏰ [Socket] Connection timeout");
-        });
-
-        // Reconnection attempt
-        newSocket.on("reconnect_attempt", (attemptNumber) => {
-          console.log(`🔄 [Socket] Reconnection attempt #${attemptNumber}`);
-        });
-
-        // Reconnection error
-        newSocket.on("reconnect_error", (error) => {
-          console.error("❌ [Socket] Reconnection error:", error);
-        });
-
-        // Reconnection failed
-        newSocket.on("reconnect_failed", () => {
-          console.error(
-            "❌ [Socket] Reconnection failed - all attempts exhausted"
-          );
-        });
-
-        // Reconnected successfully
-        newSocket.on("reconnect", (attemptNumber) => {
-          console.log(
-            `✅ [Socket] Reconnected successfully after ${attemptNumber} attempts`
-          );
         });
 
         // Disconnected
         newSocket.on("disconnect", (reason) => {
           console.warn("⚠️ [Socket] Disconnected. Reason:", reason);
-          if (reason === "io server disconnect") {
-            console.log(
-              "🔄 [Socket] Server disconnected the socket. Reconnecting..."
-            );
-            newSocket.connect();
-          }
         });
 
         // Online users event
         newSocket.on("getOnlineUser", (users: string[]) => {
           console.log("👥 [Socket] Online users received:", users);
           console.log("👥 [Socket] Number of online users:", users.length);
+          console.log(
+            "👥 [Socket] Is current user online?",
+            users.includes(userId)
+          );
           setOnlineUsers(users);
         });
 
@@ -149,8 +135,6 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       } catch (error) {
         console.error("❌ [Socket] Failed to initialize socket:", error);
         if (error instanceof Error) {
-          console.error("❌ [Socket] Error name:", error.name);
-          console.error("❌ [Socket] Error message:", error.message);
           console.error("❌ [Socket] Error stack:", error.stack);
         }
       }
